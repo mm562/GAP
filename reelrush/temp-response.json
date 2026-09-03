@@ -1,0 +1,14 @@
+{
+   "kind": "youtube#videoListResponse",
+   "etag": "NotImplemented",
+   "items": [
+      {
+         "kind": "youtube#video",
+         "etag": "NotImplemented",
+         "id": "LMzAssOr2zE",
+         "short": {
+            "available": true
+         }
+      }
+   ]
+}

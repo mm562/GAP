@@ -1,0 +1,57 @@
+{
+   "short_name": "ReelRush",
+   "name": "ReelRush",
+   "id": "app_V1.0",
+   "start_url": "./index?source=pwa",
+   "scope": "/",
+   "display": "standalone",
+   "background_color": "#ffffff",
+   "theme_color": "#000000",
+   "icons": [
+      {
+         "src": "./assets/img/app-icon.svg",
+         "type": "image/svg+xml",
+         "sizes": "512x512"
+      },
+      {
+         "src": "./assets/img/app-icon_192x192.png",
+         "type": "image/png",
+         "sizes": "192x192",
+         "purpose": "maskable"
+      },
+      {
+         "src": "./assets/img/app-icon_512x512.png",
+         "type": "image/png",
+         "sizes": "512x512"
+      }
+   ],
+   "shortcuts": [
+      {
+         "name": "Video Feed",
+         "short_name": "Video Feed",
+         "description": "Watch some videos now",
+         "url": "./app?source=pwa",
+         "icons": [
+            {
+               "src": "./assets/img/app-icon_192x192.png",
+               "sizes": "192x192"
+            }
+         ]
+      }
+   ],
+   "description": "Support research by installing our app!",
+   "screenshots": [
+      {
+         "src": "./assets/img/app-screenshot.png",
+         "type": "image/png",
+         "sizes": "583x1261",
+         "form_factor": "narrow"
+      }
+   ],
+   "related_applications": [
+      {
+         "platform": "webapp",
+         "url": "https://07ed50de-3bd1-4454-8700-2905085fecec.ul.bw-cloud-instance.org/manifest.json"
+      }
+   ]
+}

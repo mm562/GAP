@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@rajesh896/broprint.js": "^2.1.1",
+    "@thelevicole/youtube-to-html5-loader": "^5.0.0",
+    "clientjs": "^0.2.1",
+    "firebase": "^10.6.0"
+  },
+  "scripts": {
+    "compile:sass": "sass style.scss style.css"
+  }
+}
