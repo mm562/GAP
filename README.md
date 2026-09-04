@@ -22,7 +22,7 @@ its (mis)labeling.
 
 ## Study design
 
-- **Participants** are recruited through Prolific (`prolificid`) and split into **young adult**
+- **Participants** are split into **young adult**
   vs. **elderly** age groups; each group runs through the study twice (`study 1` / `study 2` —
   see [`results/endresults`](results/endresults)).
 - **Feed sessions** — each participant does 5 ReelRush feed sessions (`feednr` 1–5), one at each
