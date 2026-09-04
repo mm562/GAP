@@ -1,221 +1,113 @@
-<!-- # AIGenContent_BA_Schelling
+# GAP
 
+GAP (**G**enerational responses to **A**I-generated content and labeling on social media
+**P**latforms) studies how people of different ages react to AI-generated short-form video
+content, and to different ways of *labeling* it as AI-generated. Younger-adult and elderly
+participants each go through a field study inside a custom TikTok/Shorts-style feed app
+(**ReelRush**, in [`reelrush/`](reelrush)) that mixes AI-generated and non-AI clips at controlled
+proportions and — depending on the deployment — marks the AI-generated ones with no label, a
+randomly-placed label, or an accurate label. Scroll behaviour, watch time, and survey responses
+are logged throughout and analyzed to compare how the two age groups respond to AI content and to
+its (mis)labeling.
 
+## Repository layout
 
-## Getting started
+- [`reelrush/`](reelrush) — the study instrument itself: a PHP/JS Progressive Web App
+  participants use on their own phones. It has its own [README](reelrush/README.md) documenting
+  every file.
+- [`data/`](data) — the content side of the project: a scrape of trending TikTok videos (split out
+  by existing AI-label status) and the curated datasets built from it.
+- [`results/`](results) — the analysis pipeline, from the raw exported session/survey data down to
+  the final per-participant scores.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Study design
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- **Participants** are recruited through Prolific (`prolificid`) and split into **young adult**
+  vs. **elderly** age groups; each group runs through the study twice (`study 1` / `study 2` —
+  see [`results/endresults`](results/endresults)).
+- **Feed sessions** — each participant does 5 ReelRush feed sessions (`feednr` 1–5), one at each
+  of 5 AI-content proportions (0%, 25%, 50%, 75%, 100%), with the order counterbalanced across 10
+  assignment groups (`Group1`–`Group10`; see `setAIPercentage()` in
+  [`reelrush/logic-app.js`](reelrush/logic-app.js)).
+- **Labeling condition** (`labelmode` in `logic-app.js`) — AI-generated clips in the feed are
+  shown with `"none"` (no indication), `"random"` (a label on a random subset, independent of
+  which clips are actually AI-generated), or `"accurate"` (a label exactly on the AI-generated
+  clips).
+- **Feed content** — 180 AI-generated and 180 non-AI clips per condition
+  ([`reelrush/assets/ai_videos.json`](reelrush/assets/ai_videos.json) /
+  [`nonai_videos.json`](reelrush/assets/nonai_videos.json)), drawn from the TikTok scrape in
+  [`data/`](data). The video files themselves are hosted on the app server, not in this repo —
+  the JSON only stores their filenames/paths and captions.
+- **Measures** — an initial survey (demographics + a 10-item scale, `DSS1`–`DSS10`) before the
+  first session, then after every feed session a NASA-TLX (workload), PANAS (affect), UES
+  (engagement), and MFI + stress (fatigue) questionnaire, plus per-video watch time logged
+  automatically (`statements/insert_session_data.php`).
 
-## Add your files
+## Data pipeline (`data/`)
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+1. **Scraping** — TikTok hashtag pages (`www.tiktok.com/tag/[hashtag]`) for the top 100 trending
+   hashtags (accessed May 2026), using the method from
+   [Labeling AI-generated Content on Short-Form Video Platforms](https://github.com/maAIkekuipers/thesis).
+2. **Raw scrape** — [`data/datasets/tt_trends_dataset.csv`](data/datasets/tt_trends_dataset.csv),
+   16,556 videos, split by existing label into
+   [`..._nolabel.csv`](data/datasets/tt_trends_dataset_nolabel.csv) (16,216),
+   [`..._creatorlabel.csv`](data/datasets/tt_trends_dataset_creatorlabel.csv) (258, labeled by the
+   creator), and [`..._platformlabel.csv`](data/datasets/tt_trends_dataset_platformlabel.csv) (82,
+   labeled by TikTok itself).
+3. **Curated dataset** — after manually removing unsuitable videos (visible AI watermarks,
+   "like & subscribe" bait), [`data/aidesc_ds.csv`](data/aidesc_ds.csv) holds the final 120
+   creator-labeled AI videos used for the description/content-analysis side of the project;
+   [`data/creatorai_desc_extra.csv`](data/creatorai_desc_extra.csv) adds 60 more.
+   *(An earlier version of this README also referenced a matching `nonaidesc_ds.csv` of 120
+   non-AI videos — it isn't present in this copy of the repo; add it back here if you still have
+   it.)*
 
-```
-cd existing_repo
-git remote add origin https://gitlab.uni-ulm.de/epp92/AIgencontent_ba_schelling.git
-git branch -M mAIn
-git push -uf origin mAIn
-```
+## Results pipeline (`results/`)
 
-## Integrate with your tools
+1. **Raw** — [`results/raw/`](results/raw) holds the data as exported: the app's own
+   session/survey table (mirroring the MySQL `results` table below) and the matching feed logs.
+2. **Merge & reshape** — `reelrush/results/resultdata.php` is a small upload form that merges a
+   LimeSurvey export with the app's own session data via `results_importToDb.php`;
+   `reelrush/results/tojson.py` / `results.py` convert between the CSV/JSON representations and
+   reshape the wide survey rows into the long format in
+   [`results/processed/`](results/processed) — one row per
+   `studynr, userid, labelmode, aiamount, survey, question, answer`.
+3. **Scored output** — [`results/endresults/`](results/endresults) has the final per-participant
+   numbers used for analysis: computed TLX / PANAS / UES / MFI scale scores and average watch
+   time on AI vs. non-AI clips at each AI-content percentage (`condition`), split into four files
+   by study number and age group (`scores_study{1,2}_{young,elderly}.csv`).
 
-* [Set up project integrations](https://gitlab.uni-ulm.de/epp92/AIgencontent_ba_schelling/-/settings/integrations)
+## Running ReelRush (`reelrush/`)
 
-## Collaborate with your team
+**Requirements**
+- A PHP web host with MySQL.
+- [Composer](https://getcomposer.org/) — `google/apiclient` is used to fetch YouTube video
+  metadata (`fetch_ytvideos_details.php`, `statements/get_videodata.php`).
+- [Node/npm](https://nodejs.org/) — `firebase`, device-fingerprinting (`broprint.js`/`clientjs`),
+  and `sass` (compiles `style.scss` → `style.css`).
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+**Setup**
+1. Create a MySQL database (`db_connect.php` expects it named `schelling`) with a `users` table
+   (`userid, startdate, cookie, groupid`) and a `results` table
+   (`studynr, userid, groupid, feedid, proc, lab, result_data`).
+2. Set the DB password in `reelrush/keys.php` (`KEY_SQL`) — it's committed empty as a placeholder.
+3. From inside `reelrush/`, run `composer install` and `npm install`, then
+   `npm run compile:sass`.
+4. Deploy the contents of `reelrush/` to the web root of a PHP host — per
+   [`reelrush/README.md`](reelrush/README.md), the files need to sit at the top level, not
+   nested under another folder.
 
-## Test and Deploy
+**⚠️ Before deploying this anywhere public:** [`reelrush/statements/get_videodata.php`](reelrush/statements/get_videodata.php)
+has a YouTube Data API key hardcoded directly in it. Now that this repository is public, that key
+is exposed — regenerate/revoke it in the Google Cloud Console and move the replacement into a
+gitignored config file (the same pattern FeedTrail uses for `google-services.json`) instead of
+committing it again.
 
-Use the built-in continuous integration in GitLab.
+## Note on data and ethics
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detAIled, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information. -->
-
-## Bachelor Schelling - AI generated content
-<!-- 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method. -->
-
-## MySQL Structure
-
-```
-$servername = "localhost";
-$username = "root";
-$password = '';
-$dbname = "bachelor";
-$tablename = "users" (userid, startdate, cookie, groupid)
-$tablename = "results" (userid, groupid, feedid, longtext)
-```
-
-## Scraping
-Methods used to scrape Youtube Videos [Labeling AI-generated Content on Short-Form Video Platforms](https://github.com/maAIkekuipers/thesis)
-
-- Scraped from Hashtag Pages ("www.tiktok.com/tag/[hashtag]")
-
-### Top 100 Hashtags [Accessed May 04 2026]
-
-```
-    "#summer",
-    "#memecut",
-    "#deep",
-    "#sommer",
-    "#67",
-    "#brawlstars",
-    "#mama",
-    "#brawlstarstiktok",
-    "#recomendation",
-    "#ki",
-    "#zitat",
-    "#simson",
-    "#bundesliga",
-    "#tiktokmademebuyit",
-    "#motorcycle",
-    "#mtb",
-    "#arbeit",
-    "#championsleague",
-    "#мем",
-    "#spring",
-    "#школа",
-    "#репост",
-    "#natur",
-    "#running",
-    "#lamineyamal",
-    "#fcbayern",
-    "#motorrad",
-    "#germany🇩🇪_tik_tok",
-    "#ostern",
-    "#dealsfürdich",
-    "#bikelife",
-    "#biker",
-    "#lecker",
-    "#frühling",
-    "#billieeilish",
-    "#sunset",
-    "#justinbieber",
-    "#161",
-    "#весна",
-    "#vinted",
-    "#sun",
-    "#famous",
-    "#sonne",
-    "#mbappe",
-    "#bs",
-    "#relatablevideos",
-    "#moped",
-    "#бравлстарс",
-    "#timgioh",
-    "#btsarmy",
-    "#residentevil",
-    "#deutschlandtiktok",
-    "#mamaleben",
-    "#wahrheit",
-    "#jungkook",
-    "#digitalart",
-    "#protein",
-    "#sommervibes",
-    "#filmclips",
-    "#michaeljackson",
-    "#s51",
-    "#früchte",
-    "#nintendo",
-    "#tiktokmademebuylt",
-    "#endfield",
-    "#laufen",
-    "#aymo",
-    "#niche",
-    "#geburtstag",
-    "#drake",
-    "#abi",
-    "#brawl",
-    "#likedocheinfach",
-    "#pAIdpartnership",
-    "#garten",
-    "#twitchde",
-    "#lypsinc",
-    "#bayernmunich",
-    "#مشاهير_تيك_توك",
-    "#lehrer",
-    "#ostsee",
-    "#worldcup",
-    "#eid",
-    "#euphoria",
-    "#invincible",
-    "#supermoto",
-    "#trauer",
-    "#меллстрой",
-    "#morenutrition",
-    "#wm",
-    "#escooter",
-    "#praylumajang",
-    "#kaffee",
-    "#realität",
-    "#housemusic",
-    "#mallorca",
-    "#wwe",
-    "#liveincentiveprogram",
-    "#cortisol",
-    "#makemefamouse"
-
-```
-### Scraping Results
-* [All scraped videos](data/datasets/tt_trends_dataset.csv) - 16556 videos
-* [tiktok videos with no AI label](data/datasets/tt_trends_dataset_nolabel.csv) - 16216 videos
-* [tiktok videos with AI label by creator](data/datasets/tt_trends_dataset_creatorlabel.csv) - 258 videos
-* [tiktok videos with AI label by platform](data/datasets/tt_trends_dataset_platformlabel.csv) - 82 videos
-
-### Final Datasets
-After manually sorting out unsuitable videos (contAIning AI Watermarks, asking viewer to comment, share, subscribe)
-* [Final AI Dataset](data/AIdesc_ds.csv) - 120 videos with AI Label by creator
-* [Final NonAI Dataset](data/nonaidesc_ds.csv) - 120 videos without AI Label
-
-<!-- ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an emAIl address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a mAIntAIner or owner, allowing your project to keep going. You can also make an explicit request for mAIntAIners. -->
+Live use of this app collects participant survey responses tied to Prolific IDs, and the
+datasets contain TikTok content (creator usernames, captions) scraped without the creators'
+consent, for research classification purposes only. Treat both as sensitive — this project is
+meant to run under an approved study protocol, not as a general-purpose redistributable dataset.
+The sample data currently committed under `results/raw` and `results/processed` is test data
+(`test1`, `teilnehmer1_2`), not real participant records.
